@@ -1,0 +1,28 @@
+version: '1.0'
+
+services:
+  api:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URL=mongodb://mongo_db:27017/ecommerce
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./public/uploads:/app/public/uploads
+
+    depends_on:
+      - mongo_db
+  
+  mongo_db:
+    image: mongo:latest
+    ports: 
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
+
