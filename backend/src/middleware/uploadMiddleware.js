@@ -1,40 +1,46 @@
-// multer -> kun chai path 
-// path
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 
-// set storage engine
+// 1. ensure we have upload directory
+const uploadDir = path.join(process.cwd(), "public/uploads");
+
+if(!fs.existsSync(uploadDir)){
+    fs.mkdirSync(uploadDir, {recursive: true});
+    console.log("Upload directory created at ", uploadDir);
+};
+
+//2. Set Storage Engine
 const storage = multer.diskStorage({
     destination(req, file, cb){
-        cb(null, "public/uploads")
+        cb(null, uploadDir);
     },
     filename(req, file, cb){
-        cp(
-            null,
-            `${file.filename}-${Date.now}()${path.extname(file.originalname)}`
-        );
-    },
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    }
 });
 
-// Image check
-function checkFileType(file, cb){
-    const filetype = /jpg|jpge|png|webp/;
-    const extname = filetype.test(path.extname(file.originalname).toLocaleLowerCase());
-    const mimetype = filetype.test(file.mimetype);
+// 3. File Filter
+const checkFileType = (file, cb) => {
+    const allowedFileTypes = /jpeg|jpg|png|gif|webp|svg/;
+    const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedFileTypes.test(file.mimetype);
 
     if(extname && mimetype){
         return cb(null, true);
-    }else{
-        cb(new Error("Image Only"))
+    } else {
+        cb(new Error("Only images are allowed (jpeg, jpg, png, gif)"));
     }
-}
+};
 
+// 4. Initialize Upload
 const upload = multer({
-    storage,
-    limits: {fileSize: 10 * 1024 * 1024}, //10 MB samma ko size 
+    storage: storage,
     fileFilter: function(req, file, cb){
         checkFileType(file, cb);
-    }
-})
+    },
+    limits: { fileSize: 5 * 1024 * 1024 } // 5 MB limit
+});
 
 export default upload;

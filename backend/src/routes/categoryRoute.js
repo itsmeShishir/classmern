@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.route("/")
 .get(getAllCategory)
-.post(protect, admin, upload.single("image"), createCategory)
+.post(upload.single("image"), createCategory)
 router.route("/:id")
 .get(getSingleCategory)
 .patch(protect, admin, upload.single("image"), updateCategory)

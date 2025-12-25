@@ -23,7 +23,7 @@ app.use(cors());
 // enable cors for 
 app.use(helmet());
 app.use(morgan("dev"));
-app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")))
+app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")))
 
 
 // Routes 

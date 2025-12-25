@@ -4,10 +4,10 @@ import upload from "../middleware/uploadMiddleware.js";
 import { getProducts, searchProduct, advancesearchProduct, createProducts, getsingleProducts, updateProducts, destroyProducts  } from "../contoller/productController.js";
 const router = express.Router();
 
-router.route("/").get(getProducts).post(protect, admin, upload.single("image"), createProducts)
+router.route("/").get(getProducts).post(protect, upload.single("image"), createProducts)
 router.route("/:id")
 .get(getsingleProducts)
-.patch(protect, admin, upload.single("image"), updateProducts)
+.patch(protect, upload.single("image"), updateProducts)
 .delete(protect, admin, destroyProducts)
 
 router.route("/advance/search"). get(advancesearchProduct);

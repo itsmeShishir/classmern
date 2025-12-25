@@ -21,8 +21,7 @@ const CartPage = () => {
     }
 
     const checkoutHandler = () => {
-        // Shipping address page
-        router.push("/login?redirect=shipping");
+        router.push("/login?redirect=/shipping");
     }
 
 

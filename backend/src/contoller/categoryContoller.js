@@ -7,6 +7,13 @@ export const getAllCategory = async(req, res)=>{
     try{
         const categories = await Category.find();
         // make this into a function so we can just call and provide the parameters
+
+        const baseUrl = `${req.protocol}://${req.get("host")}/uploads/`;
+        categories.forEach(category => {
+            if(category.image){
+                category.image = baseUrl + path.basename(category.image);
+            }
+        });
         res.status(200).json({
             data: categories
         })
@@ -20,12 +27,9 @@ export const getAllCategory = async(req, res)=>{
 export const createCategory = async(req, res) =>{
     try{
         const { name } = req.body;
-        // slug -> slugify
-
         if(!req.file){
             return res.status(400).json({message:"Category image is required"})
         }
-        // win "\" or mac and linux "/" 
         const imagePath =`/uploads/${req.file.filename}`;
 
         const category = await Category.create({

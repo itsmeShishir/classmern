@@ -8,13 +8,14 @@ const ProductCard = ({
     product
 }: {
     product: Product
+
 }) => {
+    console.log(product);
   return (
     <div className='bg-white rouded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300'>
         <Link href={`/products/${product._id}`}>
             <div className='relative h-64 w-full bg-gray-100'>
-                <Image src={product.image} alt={product.name} fill className='object-contain p-4' />
-
+                <Image src={`${product.image}`} alt={product.name} fill className='object-contain p-4' />
             </div>
             <div className='p-4'>
                 <Link href={`/products/${product._id}`}>

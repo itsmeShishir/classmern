@@ -1,5 +1,8 @@
 import User from "../models/userModel.js";
 import generateToken from "../utils/generateToken.js";
+import Product from "../models/productModel.js";
+import Category from "../models/categoryModel.js";
+import Order from "../models/orderModel.js";
 
 // Register a new users
 export const registerUser = async(req, res) =>{
@@ -193,7 +196,7 @@ export const deleteUser = async (req, res)=>{
     }
 }
 
-export const updateUser = async (req, res)=>{
+export const updateUser = async (req, res, next)=>{
     try{
         const user = await User.findById(req.params.id);
         if(user){
@@ -203,10 +206,9 @@ export const updateUser = async (req, res)=>{
             // update profile password change 
             const updateUser = await user.save();
             res.status(200).json({
-                message:"Password Update Successfully",
+                message:"User Update Successfully",
                 data: updateUser
             })
-
         }else{
             res.status(404).json({message: "User Not Found"});
         }
@@ -216,7 +218,7 @@ export const updateUser = async (req, res)=>{
     }
 }
 
-export const changePassword = async(req, res) =>{
+export const changePasswordbyadmin = async(req, res) =>{
      try{
         const { new_password, confirm_password} = req.body;
         if (new_password !== confirm_password){
@@ -240,6 +242,26 @@ export const changePassword = async(req, res) =>{
             message: "User password updated successfully"
         })
 
+    }catch(e){
+        console.log(e.message);
+        res.status(500).json({message:e.message})
+    }
+}
+
+
+export const adminDashboard = async(req, res) =>{
+    try{
+        const userCount = await User.countDocuments();
+        const productCount = await Product.countDocuments();
+        const categoryCount = await Category.countDocuments();
+        const orderCount = await Order.countDocuments();
+        
+        res.status(200).json({
+            userCount,
+            productCount,
+            categoryCount,
+            orderCount
+        })
     }catch(e){
         console.log(e.message);
         res.status(500).json({message:e.message})

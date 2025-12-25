@@ -2,7 +2,7 @@
 
 import {useState, useEffect} from 'react';
 import Link from 'next/link'
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hook';
 import { setCrediantials } from '../redux/slice/authSlice';
 import api from '../utils/axios';
@@ -19,18 +19,26 @@ function LoginPage() {
     const router = useRouter();
     const dispatch = useAppDispatch();
 
+    //redirect if logged in
+    const searchParams = useSearchParams();
+    const redirect = searchParams.get("redirect") || "/";
+
     const {userInfo} = useAppSelector((state) => state.auth);
+
+
 
     // useeffect -> admin and user
     useEffect(()=>{
         if(userInfo){
-            if(userInfo.role === "admin"){
-                router.push("/admin/dashboard");
-            }else{
-                router.push("/");
-            }
+          if(redirect && redirect !== "/") {
+            router.push(redirect);
+          }else if(userInfo.role === "admin"){
+              router.push("/admin/dashboard");
+          }else{
+              router.push("/");
+          }
         }
-    },[userInfo, router ]);
+    },[userInfo, router, redirect ]);
 
     const submitHandeler =  async( e: React.FormEvent)=>{
         e.preventDefault();
@@ -47,10 +55,10 @@ function LoginPage() {
         toast.success("login successfully")
 
         // redirect base on Role
-        if (data.role === "admin") {
+        if (data.role === "admin" && redirect === "/") {
             router.push("/admin/dashboard");
         } else {
-            router.push("/");
+            router.push(redirect);
         }
 
         }catch(err : any){
