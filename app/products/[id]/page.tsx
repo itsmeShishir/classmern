@@ -9,6 +9,9 @@ import { useAppDispatch } from "@/app/redux/hook"
 import { addToCart } from "@/app/redux/slice/cartSlice"
 import { toast } from "react-toastify"
 
+const toImageSrc = (src = "") =>
+  src.startsWith("http") ? src : `http://localhost:5000${src}`;
+
 const SingleProductPage = () => {
     const {id} = useParams();
     const router = useRouter();
@@ -33,7 +36,7 @@ const SingleProductPage = () => {
             }
         }
         fetchProduct();
-    }, []);
+    }, [id]);
 
     const addToCartHandler = () => {
        if(product){
@@ -53,8 +56,14 @@ const SingleProductPage = () => {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row -mx-4">
             <div className="md:flex-1 px-4">
-                <div className="h-[460px] rounded-lg bg-gray-300 dark:bg-gray-700 mb-4">
-                    {/* <Image className="w-full h-full object-cover" src={product.image} alt={product.name} /> */}
+                <div className="h-[460px] rounded-lg bg-gray-300 dark:bg-gray-700 mb-4 overflow-hidden flex items-center justify-center">
+                    {product.image && (
+                        <img
+                          src={toImageSrc(product.image)}
+                          alt={product.name}
+                          className="h-full w-full object-contain"
+                        />
+                    )}
                 </div>
                 <div className="flex -mx-2 mb-4">
                     <div className="w-1/2 px-2">
@@ -66,7 +75,7 @@ const SingleProductPage = () => {
                 </div>
             </div>
             <div className="md:flex-1 px-4">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Product Name</h2>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{product.name}</h2>
                 <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
                    {product.name}
                 </p>
@@ -79,6 +88,19 @@ const SingleProductPage = () => {
                         <span className="font-bold text-gray-700 dark:text-gray-300">Availability:</span>
                         <span className="text-gray-600 dark:text-gray-300">{product.countInStock > 0 ? 'In Stock' : 'Out of Stock'}</span>
                     </div>
+                </div>
+                <div className="mb-4">
+                    <label className="font-bold text-gray-700 dark:text-gray-300 mr-2">Qty:</label>
+                    <select
+                      value={qty}
+                      onChange={(e) => setQty(Number(e.target.value))}
+                      className="border rounded p-2"
+                      disabled={!product.countInStock}
+                    >
+                        {[...Array(product.countInStock || 0).keys()].map((x) => (
+                            <option key={x + 1} value={x + 1}>{x + 1}</option>
+                        ))}
+                    </select>
                 </div>
                 <div>
                     <span className="font-bold text-gray-700 dark:text-gray-300">Product Description:</span>

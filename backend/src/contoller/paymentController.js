@@ -6,15 +6,30 @@ import { getEsewaSignature } from "../utils/esewa.js";
 export const initializedEsewaPayment = async (req, res) => {
     // order id, totalamount
     try{
-        const { orderId, totalAmount } = req.body;
+        const { orderId, totalAmount, totalPrice } = req.body;
 
         const order = await Order.findById(orderId);
         if(!order){
             return  res.status(404).json({message: "Order not found"});
         }
 
-        // 1. esewa part -> create signature
-        const signatureString = `${totalAmount},${order._id},${process.env.ESEWA_PRODUCT_CODE}`;
+        const amount = Number(totalAmount ?? totalPrice ?? order.totalPrice ?? 0);
+        if(!amount){
+            return res.status(400).json({message: "Invalid amount for eSewa"});
+        }
+
+        // 1. esewa part -> create signature over signed fields
+        const signedFieldNames = "total_amount,transaction_uuid,product_code";
+        const totalAmountFormatted = amount.toFixed(2); // keep exact format for signing and payload
+        const signaturePayload = {
+            total_amount: totalAmountFormatted,
+            transaction_uuid: order._id.toString(),
+            product_code: process.env.ESEWA_PRODUCT_CODE,
+        };
+        const signatureString = signedFieldNames
+            .split(",")
+            .map((field) => `${field}=${signaturePayload[field]}`)
+            .join(",");
         const signature = getEsewaSignature(signatureString, process.env.ESEWA_CLIENT_SECRET);
 
         // 2. esewa part -> return config to frontend  frontend will handel 
@@ -23,9 +38,10 @@ export const initializedEsewaPayment = async (req, res) => {
             signature,
             uuid: order._id,
             product_code: process.env.ESEWA_PRODUCT_CODE,
-            total_amount: totalAmount,
+            total_amount: signaturePayload.total_amount,
             success_url: `${process.env.FRONTEND_URL}/payment/esewa/callback?id=${order._id}`, 
-            fail_url: `${process.env.FRONTEND_URL}/payment/failed`
+            failure_url: `${process.env.FRONTEND_URL}/payment/failed`,
+            signed_field_names: signedFieldNames,
         });
 
     }catch(e){
@@ -39,21 +55,16 @@ export const verifyEsewaPayment = async (req, res) => {
 
         const orderId = req.query.id;
 
-        // decode the data
         const decodeData = JSON.parse(Buffer.from(data, 'base64').toString('utf-8'));
 
-        // data flow -> decoded data: tid, amt, pid, scd, rid, status, ...
-        // esewa -> backend -> esewa verify api
         if (decodeData.status !== 'COMPLETE') {
             return res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
         }
 
-        // Verify signature
         const message = decodeData.signed_fields_names.split(',').map((field) => {
             return `${field}=${decodeData[field]}`;
         }).join(',');
 
-        // Update order in DB
         const order = await Order.findById(orderId);
         if(!order){
             return  res.status(404).json({message: "Order not found"});
@@ -61,16 +72,15 @@ export const verifyEsewaPayment = async (req, res) => {
 
         order.isPaid = true;
         order.paidAt = Date.now();
-        order.paymentMethod = "Esewa";
+        order.paymentMethod = "esewa";
         order.paymentResult = {
             id: decodeData.tid,
             status: decodeData.status,
             update_time: Date.now(),
-            email_address: 'esewa_user@test.com' // Placeholder as esewa does not provide email
+            email_address: 'esewa_user@test.com' 
         };
 
         await order.save();
-        // Redirect to success page
         res.redirect(`${process.env.FRONTEND_URL}/payment/success?orderId=${order._id}`);
     }catch(e){
         res.status(500).json({message: e.message});
@@ -81,24 +91,30 @@ export const verifyEsewaPayment = async (req, res) => {
 // initialized khalti -> khalti url -> khalti payment
 export const initializedKhaltiPayment = async (req, res) => {
     try{
-        const { orderId, totalAmount, website_url } = req.body;
+        const { orderId, totalAmount, totalPrice, website_url } = req.body;
 
-        const order = await Order.findById(orderId);
+        const order = await Order.findById(orderId).populate("user", "name email");
         if(!order){
             return  res.status(404).json({message: "Order not found"});
         }
 
+        const amount = Number(totalAmount ?? totalPrice ?? order.totalPrice ?? 0);
+        if(!amount){
+            return res.status(400).json({message: "Invalid amount for Khalti"});
+        }
+
         // 1. Payload data
         const payload = {
-            return_url: `${process.env.FRONTEND_URL}/payment/khalti/callback?id=${order._id}`,
-            website_url: website_url,
-            amount: totalAmount * 100, // in paisa
+            // send gateway back to our backend callback which will verify and redirect to frontend
+            return_url: `${req.protocol}://${req.get("host")}/api/v1/payment/khalti/callback?id=${order._id}`,
+            website_url: website_url || process.env.FRONTEND_URL,
+            amount: amount * 100, // in paisa
             purchase_order_id: order._id.toString(),
             purchase_order_name: `Order_${order._id}`,
             customer_info:{
-                name: order.user.name,
-                email: order.user.email,
-                phone: order.user.phone || "9800000000"
+                name: order.user?.name || "Customer",
+                email: order.user?.email || "customer@example.com",
+                phone: "9800000000"
             }
         }
 
@@ -110,41 +126,42 @@ export const initializedKhaltiPayment = async (req, res) => {
             }
         });
 
-       res.json(
-        response.data
-       );
+        res.json(response.data);
 
     }catch(e){
-        res.status(500).json({message: e.message});
+        const status = e.response?.status || 500;
+        const gatewayMessage = e.response?.data?.detail || e.response?.data?.message || e.message;
+        res.status(status >= 400 && status < 600 ? status : 500).json({message: gatewayMessage});
     }
 }
 
 // verify payment khalti ->
 export const verifyKhaltiPayment = async (req, res) => {
-    try{
-        const { pxid } = req.query;
-        if(!pxid){
-            return res.status(400).json({message: "Invalid Request"});
-        }
-        // Call khalti verify api
-        const response = await axios.get(`${process.env.KHALTI_GATEWAY_URL}/epayment/lookup`, {pxid},{
-            headers: {
-                'Authorization': `Key ${process.env.KHALTI_API_KEY}`,
-                'Content-Type': 'application/json'
+        try{
+            const { pxid } = req.query;
+            if(!pxid){
+                return res.status(400).json({message: "Invalid Request"});
             }
-        });
-        const data = response.data;
-        if(data.status !== 'Completed'){
-            return res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
-        }
-        // Update order in DB
+            // Call khalti verify api
+            const response = await axios.get(`${process.env.KHALTI_GATEWAY_URL}/epayment/lookup`, {
+                params: { pxid },
+                headers: {
+                    'Authorization': `Key ${process.env.KHALTI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = response.data;
+            if(data.status !== 'Completed'){
+                return res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
+            }
+            // Update order in DB
         const order = await Order.findById(req.query.id);
         if(!order){
             return  res.status(404).json({message: "Order not found"});
         }
         order.isPaid = true;
         order.paidAt = Date.now();
-        order.paymentMethod = "Khalti";
+        order.paymentMethod = "khalti"; // match enum
         order.paymentResult = {
             id: data.pxid,
             status: data.status,
@@ -152,11 +169,11 @@ export const verifyKhaltiPayment = async (req, res) => {
             email_address: data.customer_info.email
         };
 
-        // Save order
         await order.save();
-        // Redirect to success page
         res.redirect(`${process.env.FRONTEND_URL}/payment/success?orderId=${order._id}`);
     }catch(e){
-        res.status(500).json({message: e.message});
+        const status = e.response?.status || 500;
+        const gatewayMessage = e.response?.data?.detail || e.response?.data?.message || e.message;
+        res.status(status >= 400 && status < 600 ? status : 500).json({message: gatewayMessage});
     }
 }

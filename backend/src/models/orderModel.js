@@ -19,19 +19,19 @@ const orderSchema = new mongoose.Schema({
         },
     }],
     shippingAddress:{
-        address:{type: String, require: true},
-        city: {type: String, require: true},
-        postalCode:{type:Number, require: true},
+        address:{type: String, required: true},
+        city: {type: String, required: true},
+        postalCode:{type:Number, required: true},
         country: {
             type: String,
             required: true
         },
-        phone_number:{
+        phoneNumber:{
             type: String,
             required: true
         }
     },
-    paymentMethods:{
+    paymentMethod:{
         type: String,
         required: true,
         enum:["esewa", "khalti", "cod"]

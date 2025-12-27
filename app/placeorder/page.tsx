@@ -43,7 +43,7 @@ const PlaceOrderPage = () => {
             });
 
             //clearn cart
-            dispatch(clearCartItems());
+            // dispatch(clearCartItems());
 
             // handling payment methods
             if(cart.paymentMethod === "esewa"){
@@ -62,7 +62,7 @@ const PlaceOrderPage = () => {
 
     const handleEsewaPayment = async(orderId: string, totalPrice: number) => {
         try{
-            const {data} = await api.post("/api/payment/esewa/initialize", {
+            const {data} = await api.post("payment/esewa/initialize", {
                 orderId,
                 totalPrice,
             });
@@ -86,7 +86,7 @@ const PlaceOrderPage = () => {
 
     const handleKhaltiPayment = async(orderId: string, totalPrice: number) => {
         try{
-            const {data} = await api.post("/api/payment/khalti/initialize", {
+            const {data} = await api.post("payment/khalti/initialize", {
                 orderId,
                 totalPrice,
                 website_url: window.location.origin,

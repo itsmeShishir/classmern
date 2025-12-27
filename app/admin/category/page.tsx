@@ -3,13 +3,17 @@ import { useState, useEffect } from "react"
 import api from "@/app/utils/axios"
 import { toast } from "react-toastify"
 import Link from "next/link"
-import Image from "next/image"
 
 interface Category {
     _id: string;
     name: string;
     image?: string;
 }
+
+// Ensure we always render an absolute URL even if the DB has a relative path
+const toImageSrc = (src = "") =>
+  src.startsWith("http") ? src : `http://localhost:5000${src}`;
+
 const CategoryPage = () => {
     const [loading, setLoading] = useState(true);
     const [categories, setCategories] = useState<Array<Category>>([]);
@@ -67,7 +71,13 @@ const CategoryPage = () => {
                         <td className="py-2 px-4 border-b">{category.name}</td>
                         <td className="py-2 px-4 border-b">
                             {category.image ? (
-                                <Image src={category.image} alt={category.name} className="h-12 w-12 object-cover" width={100} height={100}/>
+                                <img
+                                  src={toImageSrc(category.image)}
+                                  alt={category.name}
+                                  className="h-12 w-12 object-cover"
+                                  width={100}
+                                  height={100}
+                                />
                             ) : (
                                 "No Image"
                             )}

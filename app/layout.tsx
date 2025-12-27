@@ -34,7 +34,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ReduxProvider >
-          {/* <HeaderComponent /> */}
+          <HeaderComponent />
           {children}
           <FooterComponent />
           <ToastContainer position="top-center" />

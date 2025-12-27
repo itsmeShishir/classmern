@@ -26,13 +26,47 @@ const addDecimal = (num: number) =>{
     return (Math.round(num * 100) / 100).toFixed(2);
 }
 
-// Load initial state from localStorage 
+const emptyAddress: ShippingAddress = {
+    address: "",
+    city: "",
+    postalCode: "",
+    country: "",
+    phoneNumber: "",
+};
+
+const normalizeCartItem = (raw: CartItem): CartItem => {
+    const stock = (raw as any).countInStock ?? (raw as any).countonstock ?? (raw as any).stock ?? 0;
+    const safeStock = Number.isFinite(stock) && stock > 0 ? stock : raw.qty ?? 1;
+    const qty = Math.min(raw.qty ?? 1, safeStock);
+    return {
+        ...raw,
+        countInStock: safeStock,
+        numReviews: (raw as any).numReviews ?? (raw as any).numRating ?? raw.numReviews ?? 0,
+        qty: qty > 0 ? qty : 1,
+    };
+};
+
 const getCartFromStorage = (): CartState =>{
     if(typeof window !== 'undefined'){
-        const cart = localStorage.getItem('cart');
-        return cart ? JSON.parse(cart) : {
+        try{
+            const cart = localStorage.getItem('cart');
+            if(cart){
+                const parsed = JSON.parse(cart);
+                return {
+                    cartItems: Array.isArray(parsed.cartItems) ? parsed.cartItems.map((item: CartItem) => normalizeCartItem(item)) : [],
+                    shippingAddress: parsed.shippingAddress ?? emptyAddress,
+                    paymentMethod: parsed.paymentMethod ?? 'esewa',
+                    itemsPrice: parsed.itemsPrice ?? '0',
+                    shippingPrice: parsed.shippingPrice ?? '0',
+                    taxPrice: parsed.taxPrice ?? '0',
+                    totalPrice: parsed.totalPrice ?? '0',
+                };
+            }
+        }catch{
+        }
+        return {
             cartItems: [],
-            shippingAddress:{},
+            shippingAddress: emptyAddress,
             paymentMethod: 'esewa',
             itemsPrice: '0',
             shippingPrice: '0',
@@ -42,7 +76,7 @@ const getCartFromStorage = (): CartState =>{
     }
     return {
             cartItems: [],
-            shippingAddress:{} as ShippingAddress,
+            shippingAddress: emptyAddress,
             paymentMethod: 'esewa',
             itemsPrice: '0',
             shippingPrice: '0',
@@ -57,37 +91,31 @@ const cartSlice = createSlice({
     initialState: getCartFromStorage(),
     reducers: {
         addToCart: (state, action: PayloadAction<CartItem>) => {
-            const item = action.payload;
+            const item = normalizeCartItem(action.payload);
             const existItem = state.cartItems.find((x) => x._id === item._id);
             if(existItem){
                 state.cartItems = state.cartItems.map((x) => x._id === existItem._id ? item : x);
             }else{
                 state.cartItems = [...state.cartItems, item];
             }
-            //calculate Pice
             const itemsPrice = state.cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
             state.itemsPrice = addDecimal(itemsPrice);
 
-            // shipping price 1000> free if <1000 100
             const shippingPrice = itemsPrice > 1000 ? 0 : 100;
             state.shippingPrice = addDecimal(shippingPrice);
 
 
-            // tax price -> 13%
             const taxPrice =  Number((0.13 * itemsPrice).toFixed(2));
             state.taxPrice = addDecimal(taxPrice);
 
 
-            // total price 
             state.totalPrice = addDecimal(itemsPrice+shippingPrice+taxPrice);
 
-            // loclastorage
             localStorage.setItem('cart', JSON.stringify(state));
         },
         removeFromCart: (state, action: PayloadAction<string>) =>{
             state.cartItems = state.cartItems.filter((x) => x._id !== action.payload);
 
-            //Recalculate total
             const itemsPrice = state.cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
             state.itemsPrice = addDecimal(itemsPrice);
 

@@ -1,10 +1,28 @@
 // get, post, get single product, update, delete
 import Product from "../models/productModel.js";
 import slugify from "slugify";
+import path from "path";
+
+const withImageUrl = (req, product) => {
+    if (product?.image) {
+        const baseUrl = `${req.protocol}://${req.get("host")}/uploads/`;
+        product.image = baseUrl + path.basename(product.image);
+    }
+};
+
+const normalizeProductFields = (product) => {
+    if (!product) return;
+    product.countInStock = product.countInStock ?? product.countonstock ?? 0;
+    product.numReviews = product.numReviews ?? product.numRating ?? 0;
+};
 
 export const getProducts = async(req, res) =>{
     try{
         const product = await Product.find();
+        product.forEach((item) => {
+            withImageUrl(req, item);
+            normalizeProductFields(item);
+        });
         res.status(200).json({
             message:"Product List",
             data: product
@@ -21,6 +39,10 @@ export const searchProduct = async(req, res) => {
         const product = await Product.find({
             name: {$regex: search, $options: "i"} // i = case-insensative
         })
+        product.forEach((item) => {
+            withImageUrl(req, item);
+            normalizeProductFields(item);
+        });
 
         res.json({
             message: "Product found",
@@ -74,6 +96,10 @@ export const advancesearchProduct = async(req, res) => {
         }
 
         const product = await query;
+        product.forEach((item) => {
+            withImageUrl(req, item);
+            normalizeProductFields(item);
+        });
 
         res.status(200).json({
             message: "product found",
@@ -115,6 +141,8 @@ export const createProducts = async(req, res) =>{
 export const getsingleProducts = async(req, res) =>{
     try{
         const product = await Product.findById(req.params.id);
+        withImageUrl(req, product);
+        normalizeProductFields(product);
         res.status(200).json({
             message:"Product List",
             data: product
