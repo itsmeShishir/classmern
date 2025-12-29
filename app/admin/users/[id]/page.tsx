@@ -2,69 +2,61 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import api from "@/app/utils/axios";
-import { useAppDispatch, useAppSelector } from "@/app/redux/hook";
-import { setCrediantials } from "@/app/redux/slice/authSlice";
 
-interface ProfileResponse {
+interface AdminUserDetail {
   _id: string;
   name: string;
   email: string;
   role: "user" | "admin";
 }
 
-export default function ProfilePage() {
-  const dispatch = useAppDispatch();
-  const { userInfo } = useAppSelector((state) => state.auth);
-
+export default function AdminUserDetailPage() {
+  const { id } = useParams();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"user" | "admin">("user");
 
-  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchUser = async () => {
       try {
-        const { data } = await api.get<ProfileResponse>("users/profile");
-        setName(data.name || "");
-        setEmail(data.email || "");
-        setRole(data.role || "user");
+        const { data } = await api.get<{ data: AdminUserDetail }>(`users/${id}`);
+        const user = data.data || data;
+        setName(user.name || "");
+        setEmail(user.email || "");
+        setRole(user.role || "user");
       } catch (e: any) {
-        toast.error(e.response?.data?.message || "Failed to load profile");
+        toast.error(e.response?.data?.message || "Failed to load user");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfile();
-  }, []);
+    if (id) {
+      fetchUser();
+    }
+  }, [id]);
 
   const submitProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavingProfile(true);
+    setSaving(true);
     try {
-      await api.put("users/profile", { name, email });
-      toast.success("Profile updated");
-      if (userInfo) {
-        dispatch(
-          setCrediantials({
-            ...userInfo,
-            email,
-          })
-        );
-      }
+      await api.patch(`users/${id}`, { name, email, role });
+      toast.success("User updated");
     } catch (e: any) {
-      toast.error(e.response?.data?.message || "Failed to update profile");
+      toast.error(e.response?.data?.message || "Failed to update user");
     } finally {
-      setSavingProfile(false);
+      setSaving(false);
     }
   };
 
@@ -76,13 +68,11 @@ export default function ProfilePage() {
     }
     setSavingPassword(true);
     try {
-      await api.put("users/password", {
-        old_Password: oldPassword,
+      await api.put(`users/${id}/password`, {
         new_password: newPassword,
         confirm_password: confirmPassword,
       });
       toast.success("Password updated");
-      setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (e: any) {
@@ -92,27 +82,34 @@ export default function ProfilePage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this user?")) {
+      return;
+    }
+    try {
+      await api.delete(`users/${id}`);
+      toast.success("User deleted");
+      router.push("/admin/users");
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || "Failed to delete user");
+    }
+  };
+
   if (loading) {
-    return <div className="p-6">Loading profile...</div>;
+    return <div>Loading...</div>;
   }
 
   return (
-    <div className="max-w-3xl mx-auto my-10 px-4 space-y-8">
-      <section className="border rounded p-6 bg-white flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold">My Orders</h2>
-          <p className="text-gray-600">Track and review your recent orders.</p>
-        </div>
-        <Link
-          href="/profile/order"
-          className="bg-gray-900 text-white px-4 py-2 rounded hover:bg-black"
-        >
-          View Orders
+    <div className="mx-5 space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-red-500">Edit User</h1>
+        <Link href="/admin/users" className="text-blue-500 hover:underline">
+          Back
         </Link>
-      </section>
+      </div>
 
-      <section className="border rounded p-6 bg-white">
-        <h1 className="text-2xl font-bold mb-4">My Profile</h1>
+      <section className="bg-white border rounded p-6">
+        <h2 className="text-lg font-semibold mb-4">Profile</h2>
         <form onSubmit={submitProfile} className="space-y-4">
           <div>
             <label className="block mb-1 font-medium">Name</label>
@@ -136,36 +133,37 @@ export default function ProfilePage() {
           </div>
           <div>
             <label className="block mb-1 font-medium">Role</label>
-            <input
-              type="text"
-              className="w-full border rounded p-2 bg-gray-100"
+            <select
+              className="w-full border rounded p-2"
               value={role}
-              readOnly
-            />
+              onChange={(e) => setRole(e.target.value as "user" | "admin")}
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
-          <button
-            type="submit"
-            disabled={savingProfile}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            {savingProfile ? "Saving..." : "Save Profile"}
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="text-red-600 hover:underline"
+            >
+              Delete User
+            </button>
+          </div>
         </form>
       </section>
 
-      <section className="border rounded p-6 bg-white">
-        <h2 className="text-xl font-bold mb-4">Change Password</h2>
+      <section className="bg-white border rounded p-6">
+        <h2 className="text-lg font-semibold mb-4">Reset Password</h2>
         <form onSubmit={submitPassword} className="space-y-4">
-          <div>
-            <label className="block mb-1 font-medium">Current Password</label>
-            <input
-              type="password"
-              className="w-full border rounded p-2"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              required
-            />
-          </div>
           <div>
             <label className="block mb-1 font-medium">New Password</label>
             <input

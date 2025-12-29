@@ -5,21 +5,32 @@ const api = axios.create({
     baseURL: process.env.BASE_URL,
     headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
     },
 });
 
 api.interceptors.request.use(
     (config) => {
-        const userInfoCookies = Cookies.get("userInfo");
-        if (userInfoCookies){
-            const userInfo = JSON.parse(userInfoCookies);
-            const token = userInfo.token;
+        let token: string | undefined;
 
-            if(token){
-                config.headers.Authorization = `Bearer ${token}`;
-            
-            }
+        const userInfoCookies = Cookies.get("userInfo");
+        if (userInfoCookies) {
+            try {
+                token = JSON.parse(userInfoCookies)?.token;
+            } catch {}
         }
+
+        if (!token && typeof window !== "undefined") {
+            try {
+                const stored = localStorage.getItem("userInfo");
+                token = stored ? JSON.parse(stored)?.token : undefined;
+            } catch {}
+        }
+
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+
         return config;
     },
     (error) => {
@@ -33,9 +44,13 @@ api.interceptors.response.use(
         return response;
     },
     (error) => {
-        if (error.response.status === 401) {
+        if (error?.response?.status === 401) {
             Cookies.remove("userInfo");
-            window.location.href = "/login";
+            if (typeof window !== "undefined") {
+                localStorage.removeItem("userInfo");
+                const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+                window.location.href = `/login?redirect=${redirect}`;
+            }
         }
         return Promise.reject(error);
     }

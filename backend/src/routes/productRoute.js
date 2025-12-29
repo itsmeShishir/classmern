@@ -5,12 +5,12 @@ import { getProducts, searchProduct, advancesearchProduct, createProducts, getsi
 const router = express.Router();
 
 router.route("/").get(getProducts).post(protect, upload.single("image"), createProducts)
+router.route("/advance/search"). get(advancesearchProduct);
+router.route("/normal/search"). get(searchProduct);
+
 router.route("/:id")
 .get(getsingleProducts)
 .patch(protect, upload.single("image"), updateProducts)
 .delete(protect, admin, destroyProducts)
-
-router.route("/advance/search"). get(advancesearchProduct);
-router.route("/normal/search"). get(searchProduct);
 
 export default router;

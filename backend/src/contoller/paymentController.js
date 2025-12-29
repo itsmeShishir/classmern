@@ -33,14 +33,17 @@ export const initializedEsewaPayment = async (req, res) => {
         const signature = getEsewaSignature(signatureString, process.env.ESEWA_CLIENT_SECRET);
 
         // 2. esewa part -> return config to frontend  frontend will handel 
+        const frontendBaseUrl = (process.env.FRONTEND_URL || "").replace(/\/+$/, "");
         res.json({
             url: process.env.ESEWA_FV_URL,
             signature,
             uuid: order._id,
             product_code: process.env.ESEWA_PRODUCT_CODE,
             total_amount: signaturePayload.total_amount,
-            success_url: `${process.env.FRONTEND_URL}/payment/esewa/callback?id=${order._id}`, 
-            failure_url: `${process.env.FRONTEND_URL}/payment/failed`,
+            // success_url: `${process.env.FRONTEND_URL}/payment/esewa/callback?id=${order._id}`, 
+            // failure_url: `${process.env.FRONTEND_URL}/payment/failed`,
+            success_url: `${frontendBaseUrl}/payment/esewa/callback?orderId=${order._id}`,
+            failure_url: `${frontendBaseUrl}/payment/failed?orderId=${order._id}`,
             signed_field_names: signedFieldNames,
         });
 
@@ -51,39 +54,59 @@ export const initializedEsewaPayment = async (req, res) => {
 // verify payment esewa ->
 export const verifyEsewaPayment = async (req, res) => {
     try{
-        const {data} = req.body;
+        const data = req.body?.data || req.query?.data;
+        
+        const orderId = req.body?.orderId || req.query?.orderId || req.query?.id;
 
-        const orderId = req.query.id;
-
-        const decodeData = JSON.parse(Buffer.from(data, 'base64').toString('utf-8'));
-
-        if (decodeData.status !== 'COMPLETE') {
-            return res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
+        if(!data || !orderId){
+            return res.status(400).json({message: "Invalid Request"});
         }
 
-        const message = decodeData.signed_fields_names.split(',').map((field) => {
-            return `${field}=${decodeData[field]}`;
-        }).join(',');
+        let decodedData;
+        try{
+            decodedData = JSON.parse(Buffer.from(data, 'base64').toString('utf-8'));
+        }catch(e){
+            return res.status(400).json({message: "Invalid Request"});
+        }
 
+    if(decodedData.status !== 'COMPLETE'){
+        return res.redirect(`${process.env.FRONTEND_URL}/payment/failed`);
+    }
+
+        // Update order in DB
         const order = await Order.findById(orderId);
         if(!order){
             return  res.status(404).json({message: "Order not found"});
         }
 
+        if(order.isPaid){
+            return res.json({message: "Order already paid"});
+        }
+
         order.isPaid = true;
         order.paidAt = Date.now();
-        order.paymentMethod = "esewa";
+        order.paymentMethod = "esewa"; // match enum
         order.paymentResult = {
-            id: decodeData.tid,
-            status: decodeData.status,
-            update_time: Date.now(),
-            email_address: 'esewa_user@test.com' 
+            transationId: decodedData.transaction_id,
+            status: decodedData.status,
+            totalAmount: decodedData.total_amount,
+            paidAt: Date.now(),
+            raw: decodedData
         };
 
         await order.save();
-        res.redirect(`${process.env.FRONTEND_URL}/payment/success?orderId=${order._id}`);
+        
+        return res.json({
+            sucess: true,
+            orderId: order._id,
+            message: "Payment successful via eSewa"
+        })
+
+
+
     }catch(e){
-        res.status(500).json({message: e.message});
+        console.log(e);
+        return res.status(500).json({message: e.message});
     }
 }
 

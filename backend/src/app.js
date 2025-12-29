@@ -21,7 +21,10 @@ const __dirname = path.dirname(__filename)
 app.use(express.json());
 app.use(cors());
 // enable cors for 
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: false,
+}));
 app.use(morgan("dev"));
 app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")))
 

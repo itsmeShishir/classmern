@@ -6,7 +6,6 @@ import path from "path";
 export const getAllCategory = async(req, res)=>{
     try{
         const categories = await Category.find();
-        // make this into a function so we can just call and provide the parameters
 
         const baseUrl = `${req.protocol}://${req.get("host")}/uploads/`;
         categories.forEach(category => {

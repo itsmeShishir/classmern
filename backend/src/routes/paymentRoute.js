@@ -9,7 +9,7 @@ const router = express.Router();
 
 // esewa Routes
 router.post("/esewa/initialize", protect, initializedEsewaPayment);
-router.post("/esewa/callback", protect, verifyEsewaPayment);
+router.post("/esewa/callback", verifyEsewaPayment);
 
 // khalti Routes
 router.post("/khalti/initialize", protect, initializedKhaltiPayment);

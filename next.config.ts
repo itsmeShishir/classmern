@@ -4,11 +4,12 @@ const nextConfig: NextConfig = {
  
 
  env:{
-  BASE_URL:"http://localhost:5000/api/v1/",
+  BASE_URL: process.env.BASE_URL,
  },
 //  http://localhost:5000/uploads --> backend server for images
  images: {
     unoptimized: true,
+    domains: ['localhost'],
     remotePatterns: [
         {
             protocol: 'http',

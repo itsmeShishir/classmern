@@ -5,8 +5,9 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import api from "@/app/utils/axios";
 
-interface OrderSummary {
+interface AdminOrder {
   _id: string;
+  user?: { name?: string };
   totalPrice: number;
   isPaid: boolean;
   paidAt?: string;
@@ -15,14 +16,14 @@ interface OrderSummary {
   createdAt?: string;
 }
 
-export default function MyOrdersPage() {
+export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const { data } = await api.get("orders/myorders");
+        const { data } = await api.get("orders");
         setOrders(data || []);
       } catch (e: any) {
         toast.error(e.response?.data?.message || "Failed to load orders");
@@ -34,24 +35,23 @@ export default function MyOrdersPage() {
   }, []);
 
   if (loading) {
-    return <div className="p-6">Loading orders...</div>;
+    return <div>Loading...</div>;
   }
 
   return (
-    <div className="max-w-5xl mx-auto my-10 px-4">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">My Orders</h1>
-        <Link href="/profile" className="text-blue-500 hover:underline">
-          Back to Profile
-        </Link>
+    <div className="mx-5">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-red-500">Orders</h1>
       </div>
+
       {orders.length === 0 ? (
-        <div>No orders found.</div>
+        <div className="mt-4">No orders found.</div>
       ) : (
-        <table className="min-w-full bg-white">
+        <table className="min-w-full bg-white mt-4">
           <thead>
             <tr>
               <th className="py-2 px-4 border-b">Order ID</th>
+              <th className="py-2 px-4 border-b">Customer</th>
               <th className="py-2 px-4 border-b">Date</th>
               <th className="py-2 px-4 border-b">Total</th>
               <th className="py-2 px-4 border-b">Paid</th>
@@ -63,6 +63,7 @@ export default function MyOrdersPage() {
             {orders.map((order) => (
               <tr key={order._id}>
                 <td className="py-2 px-4 border-b">{order._id}</td>
+                <td className="py-2 px-4 border-b">{order.user?.name || "-"}</td>
                 <td className="py-2 px-4 border-b">
                   {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-"}
                 </td>
@@ -79,7 +80,7 @@ export default function MyOrdersPage() {
                 </td>
                 <td className="py-2 px-4 border-b">
                   <Link
-                    href={`/order/${order._id}`}
+                    href={`/admin/orders/${order._id}`}
                     className="text-blue-500 hover:underline"
                   >
                     View
